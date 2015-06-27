@@ -3,7 +3,7 @@
   using Newtonsoft.Json;
   using Types;
 
-  public class IMListResponse : Response {
+  public class IMListResponse : SlackResponse {
     [JsonProperty(PropertyName = "Ims")]
     public IEnumerable<IMChannel> Channels { get; set; }
   }

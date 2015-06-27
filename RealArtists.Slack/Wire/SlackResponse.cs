@@ -3,7 +3,7 @@
   using Newtonsoft.Json;
   using Newtonsoft.Json.Linq;
 
-  public class Response {
+  public class SlackResponse {
     public bool Ok { get; set; }
     public string Error { get; set; }
 
