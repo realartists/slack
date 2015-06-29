@@ -10,6 +10,7 @@
   using System.Text.RegularExpressions;
   using System.Threading.Tasks;
   using Newtonsoft.Json;
+  using Newtonsoft.Json.Converters;
   using Wire;
   using Wire.Types;
 
@@ -25,7 +26,7 @@
         Formatting = Formatting.Indented,
         NullValueHandling = NullValueHandling.Ignore,
       };
-      //_SlackJsonSettings.Converters.Add(new StringEnumConverter());
+      JsonSettings.Converters.Add(new StringEnumConverter());
       JsonSettings.Converters.Add(new EpochDateTimeConverter());
 
       _SlackJsonMediaTypeFormatters = new[] { new JsonMediaTypeFormatter() {
@@ -274,9 +275,7 @@
         args.Add(Pair("icon_emoji", iconEmoji));
       }
 
-      return MakeRequest<ChatPostMessageResponse>("chat.postMessage",
-        Pair("as_user", true)
-      );
+      return MakeRequest<ChatPostMessageResponse>("chat.postMessage", args.ToArray());
     }
 
     /// <summary>
