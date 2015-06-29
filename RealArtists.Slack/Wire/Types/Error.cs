@@ -2,7 +2,7 @@
   using System.Runtime.Serialization;
 
   [DataContract]
-  public enum Errors {
+  public enum Error {
     /// <summary>
     /// Authentication token is for a deleted user or team.
     /// </summary>

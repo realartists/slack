@@ -1,6 +1,8 @@
 ﻿namespace RealArtists.Slack {
   using System;
   using System.Collections.Generic;
+  using System.Diagnostics;
+  using System.Linq;
   using System.Net;
   using System.Net.Http;
   using System.Net.Http.Formatting;
@@ -8,26 +10,26 @@
   using System.Text.RegularExpressions;
   using System.Threading.Tasks;
   using Newtonsoft.Json;
-  using RealArtists.Slack.Wire.Types;
   using Wire;
+  using Wire.Types;
 
   public class SlackApi : IDisposable {
     private static readonly string _Version = typeof(SlackApi).Assembly.GetName().Version.ToString();
     private static readonly Uri _SlackApiRoot = new Uri("https://slack.com/api/");
-    private static readonly JsonSerializerSettings _SlackJsonSettings;
+    public static readonly JsonSerializerSettings JsonSettings;
     private static readonly JsonMediaTypeFormatter[] _SlackJsonMediaTypeFormatters;
 
     static SlackApi() {
-      _SlackJsonSettings = new JsonSerializerSettings() {
+      JsonSettings = new JsonSerializerSettings() {
         ContractResolver = new SlackPropertyNamesContractResolver(),
         Formatting = Formatting.Indented,
         NullValueHandling = NullValueHandling.Ignore,
       };
       //_SlackJsonSettings.Converters.Add(new StringEnumConverter());
-      _SlackJsonSettings.Converters.Add(new EpochDateTimeConverter());
+      JsonSettings.Converters.Add(new EpochDateTimeConverter());
 
       _SlackJsonMediaTypeFormatters = new[] { new JsonMediaTypeFormatter() {
-        SerializerSettings = _SlackJsonSettings,
+        SerializerSettings = JsonSettings,
       }};
     }
 
@@ -71,17 +73,35 @@
 
     protected async Task<T> MakeRequest<T>(string methodName, params KeyValuePair<string, string>[] args)
       where T : SlackResponse {
-      var url = new Uri(_SlackApiRoot, string.Format("{0}?token={1}", methodName, _token));
+      var url = new Uri(_SlackApiRoot, string.Format("{0}?token={1}", methodName, Uri.EscapeUriString(_token)));
       var request = new HttpRequestMessage(HttpMethod.Post, url);
 
       if (args != null && args.Length > 0) {
         request.Content = new FormUrlEncodedContent(args);
       }
 
-      var response = await _httpClient.SendAsync(request);
-      response.EnsureSuccessStatusCode();
+      SlackResponse result;
+      try {
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        result = await response.Content.ReadAsAsync<T>(_SlackJsonMediaTypeFormatters);
+      } catch (Exception e) {
+        throw new SlackException("Exception during HTTP processing.", e);
+      }
 
-      return await response.Content.ReadAsAsync<T>(_SlackJsonMediaTypeFormatters);
+      if (!result.Ok) {
+        throw new SlackException(result.Error.ToString()) {
+          Response = result,
+        };
+      }
+
+      Debug.WriteLineIf(
+        result._extensionData.Any(),
+        string.Format("Unrecognized response arguments: {0}",
+          JsonConvert.SerializeObject(result._extensionData, JsonSettings)
+        ));
+
+      return (T)result;
     }
 
     /// <summary>
@@ -90,6 +110,83 @@
     /// <returns></returns>
     public Task<AuthTestResponse> AuthTest() {
       return MakeRequest<AuthTestResponse>("auth.test");
+    }
+
+    /// <summary>
+    /// This method returns information about a team channel.
+    /// </summary>
+    /// <param name="channelId">Channel to get info on</param>
+    /// <returns></returns>
+    public Task<ChannelsInfoResponse> ChannelsInfo(string channelId) {
+      return MakeRequest<ChannelsInfoResponse>("channels.info", Pair("channel", channelId));
+    }
+
+    /// <summary>
+    /// This method returns a list of all channels in the team. This includes channels the 
+    /// caller is in, channels they are not currently in, and archived channels. The number of 
+    /// (non-deactivated) members in each channel is also returned.
+    /// </summary>
+    /// <returns></returns>
+    public Task<ChannelsListResponse> ChannelsList() {
+      return ChannelsList(false);
+    }
+
+    /// <summary>
+    /// This method returns a list of all channels in the team. This includes channels the 
+    /// caller is in, channels they are not currently in, and archived channels. The number of 
+    /// (non-deactivated) members in each channel is also returned.
+    /// </summary>
+    /// <param name="excludeArchived">Don't return archived groups.</param>
+    /// <returns></returns>
+    public Task<ChannelsListResponse> ChannelsList(bool excludeArchived) {
+      return MakeRequest<ChannelsListResponse>("groups.list",
+        Pair("exclude_archived", excludeArchived ? 1 : 0));
+    }
+
+    /// <summary>
+    /// This method moves the read cursor in a channel.
+    /// 
+    /// After making this call, the mark is saved to the database and broadcast via
+    ///  the message server to all open connections for the calling user.
+    ///
+    /// Clients should try to avoid making this call too often.When needing to mark a
+    ///  read position, a client should set a timer before making the call. In this way,
+    ///  any further updates needed during the timeout will not generate extra calls (just
+    ///  one per channel). This is useful for when reading scroll-back history, or
+    ///  following a busy live channel. A timeout of 5 seconds is a good starting point.
+    ///  Be sure to flush these calls on shutdown/logout.
+    /// </summary>
+    /// <param name="channelId">Channel to set reading cursor in.</param>
+    /// <param name="timestamp">Timestamp of the most recently seen message.</param>
+    /// <returns></returns>
+    public Task<SlackResponse> ChannelsMark(string channelId, DateTime timestamp) {
+      return MakeRequest<SlackResponse>("channels.mark",
+        Pair("channel", channelId),
+        Pair("ts", timestamp));
+    }
+
+    /// <summary>
+    /// This method is used to change the purpose of a channel. The calling user must be a member of the channel.
+    /// </summary>
+    /// <param name="channelId">Channel to set the purpose of</param>
+    /// <param name="purpose">The new purpose</param>
+    /// <returns></returns>
+    public Task<SetPurposeResponse> ChannelsSetPurpose(string channelId, string purpose) {
+      return MakeRequest<SetPurposeResponse>("channels.setPurpose",
+        Pair("channel", channelId),
+        Pair("purpose", purpose));
+    }
+
+    /// <summary>
+    /// This method is used to change the topic of a channel. The calling user must be a member of the channel.
+    /// </summary>
+    /// <param name="channelId">Channel to set the topic of</param>
+    /// <param name="topic">The new topic</param>
+    /// <returns></returns>
+    public Task<SetTopicResponse> ChannelsSetTopic(string channelId, string topic) {
+      return MakeRequest<SetTopicResponse>("channels.setTopic",
+        Pair("channel", channelId),
+        Pair("topic", topic));
     }
 
     /// <summary>
@@ -111,11 +208,73 @@
     /// <param name="channelId">Channel to send message to. Can be a public channel, 
     /// private group or IM channel. Can be an encoded ID, or a name.</param>
     /// <param name="text">Text of the message to send.</param>
+    /// <param name="username">Name of bot.</param>
+    /// <param name="asUser">Pass true to post the message as the authed user, instead of as a bot.</param>
+    /// <param name="parse">Change how messages are treated.</param>
+    /// <param name="linkNames">Find and link channel names and usernames.</param>
+    /// <param name="attachments">Structured message attachments.</param>
+    /// <param name="unfurlLinks">Pass true to enable unfurling of primarily text-based content.</param>
+    /// <param name="unfurlMedia">Pass false to disable unfurling of media content.</param>
+    /// <param name="iconUrl">URL to an image to use as the icon for this message.</param>
+    /// <param name="iconEmoji">emoji to use as the icon for this message. Overrides icon_url.</param>
     /// <returns></returns>
-    public Task<ChatPostMessageResponse> ChatPostMessage(string channelId, string text) {
+    public Task<ChatPostMessageResponse> ChatPostMessage(
+      string channelId,
+      string text,
+      string username = null,
+      bool? asUser = null,
+      ParseMode? parse = null,
+      bool? linkNames = null,
+      IEnumerable<Attachment> attachments = null,
+      bool? unfurlLinks = null,
+      bool? unfurlMedia = null,
+      string iconUrl = null,
+      string iconEmoji = null) {
+
+      var args = new List<KeyValuePair<string, string>>();
+
+      // Required arguments
+      args.Add(Pair("channel", channelId));
+      args.Add(Pair("text", text));
+
+      // Optional arguments
+      if (!string.IsNullOrWhiteSpace(username)) {
+        args.Add(Pair("username", username));
+      }
+
+      if (asUser != null) {
+        args.Add(Pair("as_user", asUser));
+      }
+
+      if (parse != null) {
+        args.Add(Pair("parse", parse));
+      }
+
+      if (linkNames != null) {
+        args.Add(Pair("link_names", linkNames == true ? "1" : "0"));
+      }
+
+      if (attachments != null && attachments.Any()) {
+        args.Add(Pair("attachments", JsonConvert.SerializeObject(attachments, JsonSettings)));
+      }
+
+      if (unfurlLinks != null) {
+        args.Add(Pair("unfurl_links", unfurlLinks));
+      }
+
+      if (unfurlMedia != null) {
+        args.Add(Pair("unfurl_media", unfurlLinks));
+      }
+
+      if (!string.IsNullOrWhiteSpace(iconUrl)) {
+        args.Add(Pair("icon_url", iconUrl));
+      }
+
+      if (!string.IsNullOrWhiteSpace(iconEmoji)) {
+        args.Add(Pair("icon_emoji", iconEmoji));
+      }
+
       return MakeRequest<ChatPostMessageResponse>("chat.postMessage",
-        Pair("channel", channelId),
-        Pair("text", EscapeMessageText(text)),
         Pair("as_user", true)
       );
     }
@@ -131,7 +290,7 @@
       return MakeRequest<ChatUpdateResponse>("chat.update",
         Pair("ts", timestamp),
         Pair("channel", channelId),
-        Pair("text", EscapeMessageText(text))
+        Pair("text", text)
       );
     }
 
@@ -220,8 +379,8 @@
     /// <param name="channelId">Private group to set the purpose of</param>
     /// <param name="purpose">The new purpose</param>
     /// <returns></returns>
-    public Task<GroupsSetPurposeResponse> GroupsSetPurpose(string channelId, string purpose) {
-      return MakeRequest<GroupsSetPurposeResponse>("groups.setPurpose",
+    public Task<SetPurposeResponse> GroupsSetPurpose(string channelId, string purpose) {
+      return MakeRequest<SetPurposeResponse>("groups.setPurpose",
         Pair("channel", channelId),
         Pair("purpose", purpose));
     }
@@ -232,8 +391,8 @@
     /// <param name="channelId"></param>
     /// <param name="topic"></param>
     /// <returns></returns>
-    public Task<GroupsSetTopicResponse> GroupsSetTopic(string channelId, string topic) {
-      return MakeRequest<GroupsSetTopicResponse>("groups.setTopic",
+    public Task<SetTopicResponse> GroupsSetTopic(string channelId, string topic) {
+      return MakeRequest<SetTopicResponse>("groups.setTopic",
         Pair("channel", channelId),
         Pair("topic", topic));
     }
@@ -328,7 +487,7 @@
     }
 
     private static readonly Regex _TextReplaceRegex = new Regex("[&<>]", RegexOptions.CultureInvariant | RegexOptions.Compiled);
-    protected string EscapeMessageText(string text) {
+    public static string EscapeMessageText(string text) {
       return _TextReplaceRegex.Replace(text, m => {
         switch (m.Value) {
           case "&":

@@ -1,5 +1,5 @@
 ﻿namespace RealArtists.Slack.Wire {
-  public class GroupsSetPurposeResponse : SlackResponse {
+  public class SetPurposeResponse : SlackResponse {
     public string Purpose { get; set; }
   }
 }
