@@ -53,6 +53,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReflectionUtils.cs" />
     <Compile Include="SlackApi.cs" />
+    <Compile Include="SlackBotApi.cs" />
     <Compile Include="SlackException.cs" />
     <Compile Include="SlackPropertyNamesContractResolver.cs" />
     <Compile Include="SnakeCaseUtils.cs" />
