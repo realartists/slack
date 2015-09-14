@@ -1,5 +1,5 @@
 ﻿namespace RealArtists.Slack.Wire.Types {
-  public class AttachementField {
+  public class AttachmentField {
     /// <summary>
     /// Shown as a bold heading above the value text. It cannot contain markup
     ///  and will be escaped for you.

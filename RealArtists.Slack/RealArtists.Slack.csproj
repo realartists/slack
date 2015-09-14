@@ -74,7 +74,7 @@
     <Compile Include="Wire\IMOpenResponse.cs" />
     <Compile Include="Wire\SlackResponse.cs" />
     <Compile Include="Wire\Types\AbstractChannel.cs" />
-    <Compile Include="Wire\Types\AttachementField.cs" />
+    <Compile Include="Wire\Types\AttachmentField.cs" />
     <Compile Include="Wire\Types\Attachment.cs" />
     <Compile Include="Wire\Types\Channel.cs" />
     <Compile Include="Wire\Types\ChannelId.cs" />

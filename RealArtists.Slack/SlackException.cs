@@ -16,13 +16,13 @@
     }
 
     protected SlackException(SerializationInfo info, StreamingContext context) : base(info, context) {
-      Response = JsonConvert.DeserializeObject<SlackResponse>(info.GetString("SlackResponse"), SlackApi.JsonSettings);
+      Response = JsonConvert.DeserializeObject<SlackResponse>(info.GetString("SlackResponse"), SlackBotApi.JsonSettings);
     }
 
     [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
     public override void GetObjectData(SerializationInfo info, StreamingContext context) {
       base.GetObjectData(info, context);
-      info.AddValue("SlackResponse", JsonConvert.SerializeObject(Response, SlackApi.JsonSettings));
+      info.AddValue("SlackResponse", JsonConvert.SerializeObject(Response, SlackBotApi.JsonSettings));
     }
 
     public SlackResponse Response { get; set; }

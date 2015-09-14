@@ -60,7 +60,7 @@
     /// Fields are defined as an array, and hashes contained within it will be displayed
     ///  in a table inside the message attachment.
     /// </summary>
-    public IEnumerable<AttachementField> Fields { get; set; }
+    public IEnumerable<AttachmentField> Fields { get; set; }
 
     /// <summary>
     /// A valid URL to an image file that will be displayed inside a message attachment.
