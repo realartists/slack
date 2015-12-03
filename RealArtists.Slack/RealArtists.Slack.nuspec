@@ -1,0 +1,17 @@
+﻿<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>$id$</id>
+    <version>0.1.0-beta</version>
+    <title>$title$</title>
+    <authors>Nick Sivo</authors>
+    <owners>James Howard, Nick Sivo</owners>
+    <licenseUrl>https://raw.githubusercontent.com/realartists/slack/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/realartists/slack</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Still super rough. Not recommended for use yet.</releaseNotes>
+    <copyright>Copyright 2015 Real Artists, Inc.</copyright>
+    <tags>Slack</tags>
+  </metadata>
+</package>
