@@ -5,7 +5,8 @@
   using Newtonsoft.Json;
   using Wire;
 
-  class SlackException : Exception {
+  [Serializable]
+  public class SlackException : Exception {
     public SlackException() {
     }
 
