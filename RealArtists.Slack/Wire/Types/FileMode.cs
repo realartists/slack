@@ -3,6 +3,9 @@
 
   [DataContract]
   public enum FileMode {
+    // Default value when not assigned.
+    None,
+
     [EnumMember(Value = "hosted")]
     Hosted,
 

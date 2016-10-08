@@ -3,6 +3,9 @@
 
   [DataContract]
   public enum Error {
+    // Default value when not assigned.
+    None,
+
     /// <summary>
     /// Authentication token is for a deleted user or team.
     /// </summary>
